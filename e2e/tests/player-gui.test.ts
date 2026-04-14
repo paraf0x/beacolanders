@@ -51,6 +51,9 @@ function cleanDb(): void {
   try {
     const ss = new SqliteClient(`${TEST_SERVER_DIR}/plugins/ShopSearch/storage.db`, { readonly: false });
     ss.run("DELETE FROM shops WHERE owner = ?", botUuid);
+    ss.run("DELETE FROM shops WHERE id = ?", TEST_SHOP_UUID);
+    // Also clean up old bad test data from previous runs
+    ss.run("DELETE FROM shops WHERE id LIKE 'test-%'");
     ss.close();
   } catch { /* ok */ }
 }
@@ -72,13 +75,17 @@ function seedLocations(): void {
   } finally { db.close(); }
 }
 
+// Fixed UUID for test shop (must be valid UUID for ShopSearch)
+const TEST_SHOP_UUID = '00000000-0000-0000-0000-000000e2e001';
+
 function seedShops(): void {
   const db = new SqliteClient(`${TEST_SERVER_DIR}/plugins/ShopSearch/storage.db`, { readonly: false });
   try {
-    const shopId = `test-${botUuid.slice(0, 8)}`;
-    db.run("INSERT INTO shops (id, owner, name, locX, locY, locZ, world) VALUES (?, ?, 'Diamond Shop', 50, 65, 100, 'world')", shopId, botUuid);
-    db.run("INSERT INTO stock (shopId, material, price, amount) VALUES (?, 'DIAMOND', 10, 64)", shopId);
-    db.run("INSERT INTO stock (shopId, material, price, amount) VALUES (?, 'EMERALD', 5, 32)", shopId);
+    db.run("DELETE FROM stock WHERE shopId = ?", TEST_SHOP_UUID);
+    db.run("DELETE FROM shops WHERE id = ?", TEST_SHOP_UUID);
+    db.run("INSERT INTO shops (id, owner, name, locX, locY, locZ, world) VALUES (?, ?, 'Diamond Shop', 50, 65, 100, 'world')", TEST_SHOP_UUID, botUuid);
+    db.run("INSERT INTO stock (shopId, lastRestock, material, price, amount) VALUES (?, '2025-01-01', 'DIAMOND', 10, 64)", TEST_SHOP_UUID);
+    db.run("INSERT INTO stock (shopId, lastRestock, material, price, amount) VALUES (?, '2025-01-01', 'EMERALD', 5, 32)", TEST_SHOP_UUID);
   } finally { db.close(); }
 }
 
@@ -274,30 +281,52 @@ describe('Beacolanders Player GUI', () => {
 
   // ─── Detail: With DB Data ────────────────────────────────
 
-  it('TC-50: seeded locations show as compass items', async () => {
+  it('TC-50: seeded locations show with correct icons', async () => {
     tc('TC-50');
     seedLocations();
-    await delay(500);
+    seedShops();
+    // Reload plugins so their in-memory caches pick up the new DB data
+    await rcon.send('loc reload');
+    await rcon.send('sh reload');
+    await delay(1000);
 
     await openDetail();
     await delay(2000);
 
     check('Location 1 uses STICK icon', 'minecraft:stick', rawItem(LOCATIONS_ROW_BASE + 1));
     check('Location 2 fallback to lodestone', 'minecraft:lodestone', rawItem(LOCATIONS_ROW_BASE + 2));
-    // No 3rd location
     const third = rawItem(LOCATIONS_ROW_BASE + 3);
     checkTruthy('No 3rd location', third === null || third === 'minecraft:air');
   });
 
-  it('TC-51: seeded shops show as barrel items', async () => {
+  it('TC-51: seeded shops show as chest items', async () => {
     tc('TC-51');
-    seedShops();
-    await delay(500);
-
+    // Data already seeded and plugins reloaded in TC-50
     await openDetail();
     await delay(2000);
 
     check('Shop is chest', 'minecraft:chest', rawItem(SHOPS_ROW_BASE + 1));
+  });
+
+  // ─── Cross-Plugin Navigation ──────────────────────────────
+
+  it('TC-52: /loc detail opens BaseManager GUI for real location', async () => {
+    tc('TC-52');
+
+    // Use a real BaseManager location that's already in the plugin's cache
+    const bmDb = new SqliteClient(`${TEST_SERVER_DIR}/plugins/BaseManager/storage.db`, { readonly: true });
+    const realLoc = bmDb.get<{ id: number, name: string }>("SELECT id, name FROM locations LIMIT 1");
+    bmDb.close();
+    checkDefined('Real location exists in DB', realLoc);
+
+    bot.chat(`/loc detail ${realLoc!.id}`);
+    const bmWin = await bot.nextWindow(10_000);
+
+    checkDefined('BaseManager GUI opened', bmWin);
+    checkGte('BaseManager GUI has items', bmWin.filledSlots().length, 1);
+    checkTruthy('Not Beacolanders GUI', !bmWin.title.includes('Beacolanders'));
+
+    await bot.closeWindow();
   });
 
   // ─── Navigation ──────────────────────────────────────────

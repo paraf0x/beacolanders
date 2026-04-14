@@ -43,6 +43,8 @@ public final class PlayerDetailGui extends GuiHolder {
     private List<ItemStack> locationItems = List.of();
     private List<ItemStack> shopItems = List.of();
     private List<ItemStack> statItems = List.of();
+    private List<LocationData> locationDataList = List.of();
+    private List<ShopData> shopDataList = List.of();
 
     public PlayerDetailGui(Beacolanders plugin, OfflinePlayer target,
                            Player viewer) {
@@ -75,7 +77,20 @@ public final class PlayerDetailGui extends GuiHolder {
                 scrollLeft(row);
             } else if (col == 8) {
                 scrollRight(row);
+            } else if (col >= 1 && col <= 7) {
+                handleRowItemClick(row, col, player);
             }
+        }
+    }
+
+    private void handleRowItemClick(int row, int col, Player player) {
+        int index = rowOffsets[row] + (col - 1);
+        if (row == LOCATIONS_ROW && index < locationDataList.size()) {
+            LocationData loc = locationDataList.get(index);
+            player.performCommand("loc detail " + loc.id());
+        } else if (row == SHOPS_ROW && index < shopDataList.size()) {
+            ShopData shop = shopDataList.get(index);
+            player.performCommand("sh detail " + shop.name());
         }
     }
 
@@ -203,6 +218,8 @@ public final class PlayerDetailGui extends GuiHolder {
             List<ItemStack> shItems = buildShopItems(shops);
 
             Bukkit.getScheduler().runTask(plugin, () -> {
+                this.locationDataList = locations;
+                this.shopDataList = shops;
                 this.locationItems = locItems;
                 this.shopItems = shItems;
                 renderScrollableRow(LOCATIONS_ROW, locationItems);
