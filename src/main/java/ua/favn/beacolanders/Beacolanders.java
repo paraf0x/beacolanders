@@ -1,26 +1,75 @@
 package ua.favn.beacolanders;
 
 import org.bukkit.plugin.java.JavaPlugin;
+import ua.favn.beacolanders.commands.BeacolandersCommand;
 import ua.favn.beacolanders.data.DatabaseReader;
+import ua.favn.beacolanders.gui.GuiListener;
 
-/**
- * Main plugin class for Beacolanders.
- */
+import java.io.File;
+import java.sql.SQLException;
+
 public class Beacolanders extends JavaPlugin {
+
+    private DatabaseReader databaseReader;
 
     @Override
     public void onEnable() {
-        this.saveDefaultConfig();
-
-        this.getLogger().info("Beacolanders enabled!");
+        saveDefaultConfig();
+        initDatabase();
+        registerCommand();
+        registerListener();
+        getLogger().info("Beacolanders enabled!");
     }
 
     @Override
     public void onDisable() {
-        this.getLogger().info("Beacolanders disabled!");
+        if (databaseReader != null) {
+            databaseReader.close();
+        }
+        getLogger().info("Beacolanders disabled!");
     }
 
     public DatabaseReader getDatabaseReader() {
-        return null; // Will be properly initialized in Task 9
+        return databaseReader;
+    }
+
+    private void initDatabase() {
+        String bmPath = getConfig().getString("database.basemanager",
+            "../BaseManager/storage.db");
+        String ssPath = getConfig().getString("database.shopsearch",
+            "../ShopSearch/storage.db");
+
+        File bmFile = new File(getDataFolder(), bmPath);
+        File ssFile = new File(getDataFolder(), ssPath);
+
+        if (!bmFile.exists()) {
+            getLogger().warning("BaseManager database not found: "
+                + bmFile.getAbsolutePath());
+        }
+        if (!ssFile.exists()) {
+            getLogger().warning("ShopSearch database not found: "
+                + ssFile.getAbsolutePath());
+        }
+
+        if (bmFile.exists() && ssFile.exists()) {
+            try {
+                databaseReader = new DatabaseReader(bmFile, ssFile);
+            } catch (SQLException e) {
+                getLogger().severe("Failed to open databases: "
+                    + e.getMessage());
+            }
+        }
+    }
+
+    private void registerCommand() {
+        var command = getCommand("beacolanders");
+        if (command != null) {
+            command.setExecutor(new BeacolandersCommand(this));
+        }
+    }
+
+    private void registerListener() {
+        getServer().getPluginManager()
+            .registerEvents(new GuiListener(), this);
     }
 }
