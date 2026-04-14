@@ -26,7 +26,7 @@ public final class DatabaseReader {
     }
 
     public List<LocationData> getLocations(String ownerUuid) {
-        String sql = "SELECT l.id, l.name, l.tag, l.isPublic"
+        String sql = "SELECT l.id, l.name, l.tag, l.isPublic, l.icon"
             + " FROM locations l WHERE l.owner = ?";
         Map<Integer, LocationData.Builder> builders = new LinkedHashMap<>();
 
@@ -37,7 +37,8 @@ public final class DatabaseReader {
                     int id = rs.getInt("id");
                     builders.put(id, new LocationData.Builder(
                         id, rs.getString("name"), rs.getString("tag"),
-                        rs.getInt("isPublic") == 1
+                        rs.getInt("isPublic") == 1,
+                        rs.getString("icon")
                     ));
                 }
             }

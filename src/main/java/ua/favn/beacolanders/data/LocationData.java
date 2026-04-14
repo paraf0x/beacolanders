@@ -8,6 +8,7 @@ public record LocationData(
     String name,
     String tag,
     boolean isPublic,
+    String icon,
     List<CoordData> coords,
     List<String> memberNames
 ) {
@@ -21,14 +22,17 @@ public record LocationData(
         private final String name;
         private final String tag;
         private final boolean isPublic;
+        private final String icon;
         private final List<CoordData> coords = new ArrayList<>();
         private final List<String> memberNames = new ArrayList<>();
 
-        Builder(int id, String name, String tag, boolean isPublic) {
+        Builder(int id, String name, String tag, boolean isPublic,
+                String icon) {
             this.id = id;
             this.name = name;
             this.tag = tag;
             this.isPublic = isPublic;
+            this.icon = icon;
         }
 
         void addCoord(CoordData coord) {
@@ -40,7 +44,7 @@ public record LocationData(
         }
 
         LocationData build() {
-            return new LocationData(id, name, tag, isPublic,
+            return new LocationData(id, name, tag, isPublic, icon,
                 List.copyOf(coords), List.copyOf(memberNames));
         }
     }

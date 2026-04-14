@@ -12,6 +12,7 @@ import java.sql.Statement;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DatabaseReaderTest {
@@ -84,8 +85,8 @@ class DatabaseReaderTest {
     void getLocations_returnsLocationsForOwner() throws Exception {
         String ownerUuid = "ca18d342-1234-5678-9abc-def012345678";
         try (Statement stmt = bmConn.createStatement()) {
-            stmt.execute("INSERT INTO locations (id, owner, tag, name, created, isPublic)"
-                + " VALUES (1, '" + ownerUuid + "', 'BASE', 'My Base', '2025-01-01', 1)");
+            stmt.execute("INSERT INTO locations (id, owner, tag, name, created, isPublic, icon)"
+                + " VALUES (1, '" + ownerUuid + "', 'BASE', 'My Base', '2025-01-01', 1, 'STICK')");
             stmt.execute("INSERT INTO location_coords (locationId, world, locX, locY, locZ)"
                 + " VALUES (1, 'world', 10, 64, 20)");
             stmt.execute("INSERT INTO location_coords (locationId, world, locX, locY, locZ)"
@@ -104,6 +105,20 @@ class DatabaseReaderTest {
         assertEquals(2, loc.coords().size());
         assertEquals(1, loc.memberNames().size());
         assertEquals("Steve", loc.memberNames().get(0));
+        assertEquals("STICK", loc.icon());
+    }
+
+    @Test
+    void getLocations_returnsNullIconWhenNotSet() throws Exception {
+        String ownerUuid = "ca18d342-1234-5678-9abc-000000000001";
+        try (Statement stmt = bmConn.createStatement()) {
+            stmt.execute("INSERT INTO locations (id, owner, tag, name, created)"
+                + " VALUES (99, '" + ownerUuid + "', 'BASE', 'No Icon', '2025-01-01')");
+        }
+
+        List<LocationData> locations = reader.getLocations(ownerUuid);
+        assertEquals(1, locations.size());
+        assertNull(locations.get(0).icon());
     }
 
     @Test

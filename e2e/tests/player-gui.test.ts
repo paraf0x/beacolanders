@@ -58,12 +58,14 @@ function cleanDb(): void {
 function seedLocations(): void {
   const db = new SqliteClient(`${TEST_SERVER_DIR}/plugins/BaseManager/storage.db`, { readonly: false });
   try {
-    db.run("INSERT INTO locations (owner, tag, name, created, isPublic) VALUES (?, 'BASE', 'Test Base', '2025-01-01', 1)", botUuid);
+    // Location 1: with STICK icon
+    db.run("INSERT INTO locations (owner, tag, name, created, isPublic, icon) VALUES (?, 'BASE', 'Test Base', '2025-01-01', 1, 'STICK')", botUuid);
     const id1 = db.get<{ id: number }>("SELECT last_insert_rowid() as id")!.id;
     db.run("INSERT INTO location_coords (locationId, world, locX, locY, locZ) VALUES (?, 'world', 100, 64, 200)", id1);
     db.run("INSERT INTO location_coords (locationId, world, locX, locY, locZ) VALUES (?, 'world_nether', 12, 128, 25)", id1);
     db.run("INSERT INTO location_members (locationId, memberUUID, memberName) VALUES (?, 'fake-uuid', 'SomeMember')", id1);
 
+    // Location 2: no icon (null) → should fallback to lodestone
     db.run("INSERT INTO locations (owner, tag, name, created, isPublic) VALUES (?, 'FARM', 'Iron Farm', '2025-02-01', 0)", botUuid);
     const id2 = db.get<{ id: number }>("SELECT last_insert_rowid() as id")!.id;
     db.run("INSERT INTO location_coords (locationId, world, locX, locY, locZ) VALUES (?, 'world', 300, 50, 400)", id2);
@@ -280,8 +282,8 @@ describe('Beacolanders Player GUI', () => {
     await openDetail();
     await delay(2000);
 
-    check('Location 1 is compass', 'minecraft:compass', rawItem(LOCATIONS_ROW_BASE + 1));
-    check('Location 2 is compass', 'minecraft:compass', rawItem(LOCATIONS_ROW_BASE + 2));
+    check('Location 1 uses STICK icon', 'minecraft:stick', rawItem(LOCATIONS_ROW_BASE + 1));
+    check('Location 2 fallback to lodestone', 'minecraft:lodestone', rawItem(LOCATIONS_ROW_BASE + 2));
     // No 3rd location
     const third = rawItem(LOCATIONS_ROW_BASE + 3);
     checkTruthy('No 3rd location', third === null || third === 'minecraft:air');
@@ -295,7 +297,7 @@ describe('Beacolanders Player GUI', () => {
     await openDetail();
     await delay(2000);
 
-    check('Shop is barrel', 'minecraft:barrel', rawItem(SHOPS_ROW_BASE + 1));
+    check('Shop is chest', 'minecraft:chest', rawItem(SHOPS_ROW_BASE + 1));
   });
 
   // ─── Navigation ──────────────────────────────────────────

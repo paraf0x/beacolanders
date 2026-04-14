@@ -15,9 +15,15 @@ import ua.favn.beacolanders.data.LocationData;
 import ua.favn.beacolanders.data.PlayerDataProvider;
 import ua.favn.beacolanders.data.ShopData;
 
+import org.bukkit.configuration.file.YamlConfiguration;
+
+import java.io.StringReader;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public final class PlayerDetailGui extends GuiHolder {
 
@@ -213,7 +219,7 @@ public final class PlayerDetailGui extends GuiHolder {
         }
         List<ItemStack> items = new ArrayList<>();
         for (LocationData loc : locations) {
-            ItemStack item = new ItemStack(Material.COMPASS);
+            ItemStack item = parseIcon(loc.icon());
             ItemMeta meta = item.getItemMeta();
             meta.displayName(mm("<aqua>" + loc.name()));
             List<Component> lore = new ArrayList<>();
@@ -241,7 +247,7 @@ public final class PlayerDetailGui extends GuiHolder {
         }
         List<ItemStack> items = new ArrayList<>();
         for (ShopData shop : shops) {
-            ItemStack item = new ItemStack(Material.BARREL);
+            ItemStack item = new ItemStack(Material.CHEST);
             ItemMeta meta = item.getItemMeta();
             meta.displayName(mm("<gold>" + shop.name()));
             List<Component> lore = new ArrayList<>();
@@ -334,6 +340,32 @@ public final class PlayerDetailGui extends GuiHolder {
     private boolean isScrollableRow(int row) {
         return row == LOCATIONS_ROW || row == SHOPS_ROW
             || row == STATS_ROW;
+    }
+
+    private static ItemStack parseIcon(String icon) {
+        if (icon == null || icon.isEmpty()) {
+            return new ItemStack(Material.LODESTONE);
+        }
+        // Simple material name (e.g. "STICK")
+        Material simple = Material.matchMaterial(icon);
+        if (simple != null) {
+            return new ItemStack(simple);
+        }
+        // Base64-encoded Bukkit ItemStack YAML
+        try {
+            String yaml = new String(
+                Base64.getDecoder().decode(icon));
+            YamlConfiguration config = new YamlConfiguration();
+            config.load(new StringReader(yaml));
+            ItemStack parsed = config.getItemStack("item");
+            if (parsed != null) {
+                return parsed;
+            }
+        } catch (Exception e) {
+            Logger.getLogger(PlayerDetailGui.class.getName())
+                .log(Level.FINE, "Failed to parse icon", e);
+        }
+        return new ItemStack(Material.LODESTONE);
     }
 
     private static ItemStack statItem(Material material, String name,
