@@ -5,7 +5,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 /**
  * Main plugin class for Beacolanders.
  */
-public final class Beacolanders extends JavaPlugin {
+public class Beacolanders extends JavaPlugin {
 
     @Override
     public void onEnable() {
