@@ -12,22 +12,20 @@ let rcon: RconClient;
 let botUuid: string;
 
 const TEST_SERVER_DIR = process.env.TEST_SERVER_DIR ?? '/Users/maksymvasyukov/purpur-test';
+const TEST_SHOP_NAME = 'E2eTestShop';
 
-// ─── Raw Window Helpers (for post-click / post-async reads) ──
+// ─── Raw Window Helpers ──────────────────────────────────────
 
-/** Read item name from raw mineflayer window (e.g. 'minecraft:clock') */
 function rawItem(index: number): string | null {
   const slot = (bot.raw as any).currentWindow?.slots?.[index];
   return slot?.name ? `minecraft:${slot.name}` : null;
 }
 
-/** Click slot in-place (no new window expected — for scroll arrows) */
 async function clickRaw(index: number): Promise<void> {
   await (bot.raw as any).clickWindow(index, 0, 0);
   await delay(400);
 }
 
-/** Open /bl and navigate to detail view */
 async function openDetail(): Promise<WindowSnapshot> {
   bot.chat('/bl');
   const list = await bot.nextWindow(10_000);
@@ -35,58 +33,59 @@ async function openDetail(): Promise<WindowSnapshot> {
   return list.clickSlot(heads[0].index);
 }
 
-// Slot index helpers (0-based): row R (1-indexed), col C (1-indexed) = (R-1)*9 + (C-1)
-const STATS_ROW_BASE = 4 * 9;       // row 5 = index 36
-const LOCATIONS_ROW_BASE = 2 * 9;   // row 3 = index 18
-const SHOPS_ROW_BASE = 3 * 9;       // row 4 = index 27
+const STATS_ROW_BASE = 4 * 9;
+const LOCATIONS_ROW_BASE = 2 * 9;
+const SHOPS_ROW_BASE = 3 * 9;
 
-// ─── DB Helpers ──────────────────────────────────────────────
+// ─── DB Helpers (locations only — shops created via commands) ─
 
-function cleanDb(): void {
+function cleanLocations(): void {
   try {
     const bm = new SqliteClient(`${TEST_SERVER_DIR}/plugins/BaseManager/storage.db`, { readonly: false });
     bm.run("DELETE FROM locations WHERE owner = ?", botUuid);
     bm.close();
-  } catch { /* ok */ }
-  try {
-    const ss = new SqliteClient(`${TEST_SERVER_DIR}/plugins/ShopSearch/storage.db`, { readonly: false });
-    ss.run("DELETE FROM shops WHERE owner = ?", botUuid);
-    ss.run("DELETE FROM shops WHERE id = ?", TEST_SHOP_UUID);
-    // Also clean up old bad test data from previous runs
-    ss.run("DELETE FROM shops WHERE id LIKE 'test-%'");
-    ss.close();
   } catch { /* ok */ }
 }
 
 function seedLocations(): void {
   const db = new SqliteClient(`${TEST_SERVER_DIR}/plugins/BaseManager/storage.db`, { readonly: false });
   try {
-    // Location 1: with STICK icon
     db.run("INSERT INTO locations (owner, tag, name, created, isPublic, icon) VALUES (?, 'BASE', 'Test Base', '2025-01-01', 1, 'STICK')", botUuid);
     const id1 = db.get<{ id: number }>("SELECT last_insert_rowid() as id")!.id;
     db.run("INSERT INTO location_coords (locationId, world, locX, locY, locZ) VALUES (?, 'world', 100, 64, 200)", id1);
     db.run("INSERT INTO location_coords (locationId, world, locX, locY, locZ) VALUES (?, 'world_nether', 12, 128, 25)", id1);
     db.run("INSERT INTO location_members (locationId, memberUUID, memberName) VALUES (?, 'fake-uuid', 'SomeMember')", id1);
 
-    // Location 2: no icon (null) → should fallback to lodestone
     db.run("INSERT INTO locations (owner, tag, name, created, isPublic) VALUES (?, 'FARM', 'Iron Farm', '2025-02-01', 0)", botUuid);
     const id2 = db.get<{ id: number }>("SELECT last_insert_rowid() as id")!.id;
     db.run("INSERT INTO location_coords (locationId, world, locX, locY, locZ) VALUES (?, 'world', 300, 50, 400)", id2);
   } finally { db.close(); }
 }
 
-// Fixed UUID for test shop (must be valid UUID for ShopSearch)
-const TEST_SHOP_UUID = '00000000-0000-0000-0000-000000e2e001';
+// ─── Shop Helpers (via plugin commands — stays in cache) ─────
 
-function seedShops(): void {
-  const db = new SqliteClient(`${TEST_SERVER_DIR}/plugins/ShopSearch/storage.db`, { readonly: false });
+async function createTestShop(): Promise<void> {
+  // Delete if exists from a previous run
+  bot.clearMessages();
+  bot.chat(`/sh delete ${TEST_SHOP_NAME}`);
+  await delay(500);
+
+  // Create shop at coords 50 65 100
+  bot.chat(`/sh create ${TEST_SHOP_NAME} 50 65 100`);
+  await delay(500);
+
+  // Add stock via restock command
+  bot.chat(`/sh restock ${TEST_SHOP_NAME} new diamond 64 150`);
+  await delay(300);
+  bot.chat(`/sh restock ${TEST_SHOP_NAME} new emerald 32 50`);
+  await delay(300);
+}
+
+async function deleteTestShop(): Promise<void> {
   try {
-    db.run("DELETE FROM stock WHERE shopId = ?", TEST_SHOP_UUID);
-    db.run("DELETE FROM shops WHERE id = ?", TEST_SHOP_UUID);
-    db.run("INSERT INTO shops (id, owner, name, locX, locY, locZ, world) VALUES (?, ?, 'Diamond Shop', 50, 65, 100, 'world')", TEST_SHOP_UUID, botUuid);
-    db.run("INSERT INTO stock (shopId, lastRestock, material, price, amount) VALUES (?, '2025-01-01', 'DIAMOND', 10, 64)", TEST_SHOP_UUID);
-    db.run("INSERT INTO stock (shopId, lastRestock, material, price, amount) VALUES (?, '2025-01-01', 'EMERALD', 5, 32)", TEST_SHOP_UUID);
-  } finally { db.close(); }
+    bot.chat(`/sh delete ${TEST_SHOP_NAME}`);
+    await delay(500);
+  } catch { /* ok */ }
 }
 
 // ─── Tests ───────────────────────────────────────────────────
@@ -97,8 +96,9 @@ describe('Beacolanders Player GUI', () => {
     rcon = await getServer().rcon();
     bot = await getServer().createBot('GuiBot');
     botUuid = offlineUuid('GuiBot');
-    cleanDb();
+    cleanLocations();
 
+    // Equip bot
     await rcon.send('item replace entity GuiBot armor.head with minecraft:diamond_helmet');
     await rcon.send('item replace entity GuiBot armor.chest with minecraft:iron_chestplate');
     await rcon.send('item replace entity GuiBot armor.legs with minecraft:golden_leggings');
@@ -115,7 +115,8 @@ describe('Beacolanders Player GUI', () => {
 
   afterAll(async () => {
     console.log(printProtocol());
-    cleanDb();
+    cleanLocations();
+    await deleteTestShop();
     try { await bot?.disconnect(); } catch { /* ok */ }
     await releaseServer();
   });
@@ -214,7 +215,6 @@ describe('Beacolanders Player GUI', () => {
     tc('TC-30');
     const d = await openDetail();
 
-    // Row 5: left grey, 7 stats, right arrow
     check('Left boundary grey', 'minecraft:gray_stained_glass_pane', d.slot(1, 5).item);
     check('Stat 1: clock', 'minecraft:clock', d.slot(2, 5).item);
     check('Stat 2: skull', 'minecraft:skeleton_skull', d.slot(3, 5).item);
@@ -231,34 +231,28 @@ describe('Beacolanders Player GUI', () => {
     tc('TC-31');
     await openDetail();
 
-    // Initial: slot(2,5) = index 37 = clock
-    check('Start: slot 37 is clock', 'minecraft:clock', rawItem(STATS_ROW_BASE + 1));
+    check('Start: first stat is clock', 'minecraft:clock', rawItem(STATS_ROW_BASE + 1));
 
-    // Scroll right: arrow at slot(9,5) = index 44
     await clickRaw(STATS_ROW_BASE + 8);
-    check('After 1x right: slot 37 is skull', 'minecraft:skeleton_skull', rawItem(STATS_ROW_BASE + 1));
+    check('After 1x right: first stat is skull', 'minecraft:skeleton_skull', rawItem(STATS_ROW_BASE + 1));
     check('Left arrow active', 'minecraft:arrow', rawItem(STATS_ROW_BASE));
 
-    // Scroll to end (2 more)
     await clickRaw(STATS_ROW_BASE + 8);
     await clickRaw(STATS_ROW_BASE + 8);
     check('At end: right grey', 'minecraft:gray_stained_glass_pane', rawItem(STATS_ROW_BASE + 8));
     check('At end: last stat is rabbit_foot', 'minecraft:rabbit_foot', rawItem(STATS_ROW_BASE + 7));
 
-    // Can't scroll past end
     await clickRaw(STATS_ROW_BASE + 8);
-    check('Still at end', 'minecraft:gray_stained_glass_pane', rawItem(STATS_ROW_BASE + 8));
+    check('Past end: still grey', 'minecraft:gray_stained_glass_pane', rawItem(STATS_ROW_BASE + 8));
 
-    // Scroll back to start
     await clickRaw(STATS_ROW_BASE);
     await clickRaw(STATS_ROW_BASE);
     await clickRaw(STATS_ROW_BASE);
     check('Back: left grey', 'minecraft:gray_stained_glass_pane', rawItem(STATS_ROW_BASE));
-    check('Back: slot 37 is clock', 'minecraft:clock', rawItem(STATS_ROW_BASE + 1));
+    check('Back: first stat is clock', 'minecraft:clock', rawItem(STATS_ROW_BASE + 1));
 
-    // Can't scroll past start
     await clickRaw(STATS_ROW_BASE);
-    check('Still at start', 'minecraft:gray_stained_glass_pane', rawItem(STATS_ROW_BASE));
+    check('Past start: still grey', 'minecraft:gray_stained_glass_pane', rawItem(STATS_ROW_BASE));
   });
 
   // ─── Detail: Empty DB Rows ───────────────────────────────
@@ -267,7 +261,6 @@ describe('Beacolanders Player GUI', () => {
     tc('TC-40');
     await openDetail();
     await delay(2000);
-
     check('Loc placeholder is pane', 'minecraft:gray_stained_glass_pane', rawItem(LOCATIONS_ROW_BASE + 1));
   });
 
@@ -275,7 +268,6 @@ describe('Beacolanders Player GUI', () => {
     tc('TC-41');
     await openDetail();
     await delay(2000);
-
     check('Shop placeholder is pane', 'minecraft:gray_stained_glass_pane', rawItem(SHOPS_ROW_BASE + 1));
   });
 
@@ -284,11 +276,7 @@ describe('Beacolanders Player GUI', () => {
   it('TC-50: seeded locations show with correct icons', async () => {
     tc('TC-50');
     seedLocations();
-    seedShops();
-    // Reload plugins so their in-memory caches pick up the new DB data
-    await rcon.send('loc reload');
-    await rcon.send('sh reload');
-    await delay(1000);
+    await delay(500);
 
     await openDetail();
     await delay(2000);
@@ -299,9 +287,12 @@ describe('Beacolanders Player GUI', () => {
     checkTruthy('No 3rd location', third === null || third === 'minecraft:air');
   });
 
-  it('TC-51: seeded shops show as chest items', async () => {
+  it('TC-51: shop created via command shows as chest in detail', async () => {
     tc('TC-51');
-    // Data already seeded and plugins reloaded in TC-50
+
+    // Create shop via ShopSearch commands (data goes into plugin cache)
+    await createTestShop();
+
     await openDetail();
     await delay(2000);
 
@@ -310,14 +301,14 @@ describe('Beacolanders Player GUI', () => {
 
   // ─── Cross-Plugin Navigation ──────────────────────────────
 
-  it('TC-52: /loc detail opens BaseManager GUI for real location', async () => {
+  it('TC-52: /loc detail opens BaseManager detail GUI', async () => {
     tc('TC-52');
 
-    // Use a real BaseManager location that's already in the plugin's cache
+    // Use a real BaseManager location already in cache
     const bmDb = new SqliteClient(`${TEST_SERVER_DIR}/plugins/BaseManager/storage.db`, { readonly: true });
-    const realLoc = bmDb.get<{ id: number, name: string }>("SELECT id, name FROM locations LIMIT 1");
+    const realLoc = bmDb.get<{ id: number }>("SELECT id FROM locations LIMIT 1");
     bmDb.close();
-    checkDefined('Real location exists in DB', realLoc);
+    checkDefined('Real location exists', realLoc);
 
     bot.chat(`/loc detail ${realLoc!.id}`);
     const bmWin = await bot.nextWindow(10_000);
@@ -325,8 +316,36 @@ describe('Beacolanders Player GUI', () => {
     checkDefined('BaseManager GUI opened', bmWin);
     checkGte('BaseManager GUI has items', bmWin.filledSlots().length, 1);
     checkTruthy('Not Beacolanders GUI', !bmWin.title.includes('Beacolanders'));
+  });
 
-    await bot.closeWindow();
+  it('TC-53: /sh detail opens ShopSearch inventory GUI', async () => {
+    tc('TC-53');
+
+    // Use the shop we created via commands in TC-51
+    bot.chat(`/sh detail ${TEST_SHOP_NAME}`);
+    const ssWin = await bot.nextWindow(10_000);
+
+    checkDefined('ShopSearch GUI opened', ssWin);
+    checkGte('ShopSearch GUI has items', ssWin.filledSlots().length, 1);
+    checkTruthy('Not Beacolanders GUI', !ssWin.title.includes('Beacolanders'));
+  });
+
+  it('TC-54: clicking shop in Beacolanders opens ShopSearch GUI', async () => {
+    tc('TC-54');
+
+    await openDetail();
+    await delay(2000);
+
+    // Shop at SHOPS_ROW_BASE + 1
+    check('Shop exists', 'minecraft:chest', rawItem(SHOPS_ROW_BASE + 1));
+
+    // Click — triggers performCommand("sh detail E2eTestShop")
+    const winPromise = bot.nextWindow(10_000);
+    await (bot.raw as any).clickWindow(SHOPS_ROW_BASE + 1, 0, 0);
+    const ssWin = await winPromise;
+
+    checkDefined('ShopSearch GUI opened via click', ssWin);
+    checkTruthy('Not Beacolanders title', !ssWin.title.includes('Beacolanders'));
   });
 
   // ─── Navigation ──────────────────────────────────────────
