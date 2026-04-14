@@ -1,0 +1,6 @@
+# Beacolanders Messages
+# Supports MiniMessage format: <red>, <gold>, <green>, etc.
+# Placeholders use curly braces: {variable}
+
+# Prefix for all messages
+prefix: "<gray>[<gold>Beacolanders<gray>] "

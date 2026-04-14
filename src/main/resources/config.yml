@@ -1,0 +1,6 @@
+# Beacolanders Configuration
+
+# Database settings
+database:
+  # Database file name (SQLite)
+  file: storage.db
