@@ -22,6 +22,10 @@ public class Beacolanders extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
+        saveResource("achievements.yml", false);
+        initAchievements();
+        int ttl = getConfig().getInt("leaderboard.cache-ttl-seconds", 60);
+        leaderboardService = new LeaderboardService(ttl);
         initDatabase();
         registerCommand();
         registerListener();
@@ -41,24 +45,20 @@ public class Beacolanders extends JavaPlugin {
     }
 
     public LeaderboardService getLeaderboardService() {
-        if (leaderboardService == null) {
-            leaderboardService = new LeaderboardService(LEADERBOARD_CACHE_TTL_SECONDS);
-        }
         return leaderboardService;
     }
 
     public AchievementManager getAchievementManager() {
-        if (achievementManager == null) {
-            achievementManager = new AchievementManager();
-            try {
-                java.io.File f = new java.io.File(getDataFolder(), "achievements.yml");
-                if (f.exists()) {
-                    achievementManager.load(YamlConfiguration.loadConfiguration(f));
-                }
-            } catch (Exception ignored) {
-            }
-        }
         return achievementManager;
+    }
+
+    private void initAchievements() {
+        achievementManager = new AchievementManager();
+        File achievementsFile = new File(getDataFolder(), "achievements.yml");
+        org.bukkit.configuration.file.YamlConfiguration config =
+            org.bukkit.configuration.file.YamlConfiguration.loadConfiguration(achievementsFile);
+        achievementManager.load(config);
+        getLogger().info("Loaded " + achievementManager.getAll().size() + " achievements.");
     }
 
     private void initDatabase() {

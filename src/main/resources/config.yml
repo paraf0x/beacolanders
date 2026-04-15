@@ -4,3 +4,7 @@
 database:
   basemanager: ../BaseManager/storage.db
   shopsearch: ../ShopSearch/storage.db
+
+# Leaderboard settings
+leaderboard:
+  cache-ttl-seconds: 60
