@@ -418,4 +418,79 @@ describe('Beacolanders Player GUI', () => {
     await clickRaw(48);  // empty row 6
     check('Back button still there', 'minecraft:barrier', rawItem(0));
   });
+
+  // ─── Leaderboards ────────────────────────────────────────────
+
+  it('TC-70: /bl top opens leaderboard selector GUI', async () => {
+    tc('TC-70');
+    bot.chat('/bl top');
+    const win = await bot.nextWindow(10_000);
+
+    checkContains('Title contains Leaderboards', win.title, 'Leaderboards');
+    check('Back button is barrier', 'minecraft:barrier', win.slot(1, 1).item);
+    check('First stat category is clock', 'minecraft:clock', win.slotAt(9).item);
+  });
+
+  it('TC-71: clicking stat in selector opens leaderboard', async () => {
+    tc('TC-71');
+    bot.chat('/bl top');
+    const selector = await bot.nextWindow(10_000);
+    const lb = await selector.clickSlot(9);
+
+    checkContains('Title contains Leaderboard', lb.title, 'Leaderboard');
+    check('Back button present', 'minecraft:barrier', lb.slot(1, 1).item);
+    check('You head is PLAYER_HEAD', 'minecraft:player_head', lb.slotAt(49).item);
+  });
+
+  it('TC-72: /bl top deaths opens specific leaderboard', async () => {
+    tc('TC-72');
+    bot.chat('/bl top deaths');
+    const win = await bot.nextWindow(10_000);
+
+    checkContains('Title contains Deaths', win.title, 'Deaths');
+    check('Stat icon is skeleton_skull', 'minecraft:skeleton_skull', win.slot(5, 1).item);
+  });
+
+  it('TC-73: gold ingot in player list opens leaderboards', async () => {
+    tc('TC-73');
+    bot.chat('/bl');
+    const list = await bot.nextWindow(10_000);
+
+    check('Slot 2 is gold_ingot', 'minecraft:gold_ingot', list.slotAt(2).item);
+    const lb = await list.clickSlot(2);
+    checkContains('New window title contains Leaderboards', lb.title, 'Leaderboards');
+  });
+
+  // ─── Achievements ─────────────────────────────────────────────
+
+  it('TC-80: /bl achievements opens achievements GUI', async () => {
+    tc('TC-80');
+    bot.chat('/bl achievements');
+    const win = await bot.nextWindow(10_000);
+
+    checkContains('Title contains Achievements', win.title, 'Achievements');
+    check('Back button present', 'minecraft:barrier', win.slot(1, 1).item);
+    checkDefined('At least 1 item at slotAt(9)', win.slotAt(9));
+  });
+
+  it('TC-81: emerald in player list opens achievements', async () => {
+    tc('TC-81');
+    bot.chat('/bl');
+    const list = await bot.nextWindow(10_000);
+
+    check('Slot 6 is emerald', 'minecraft:emerald', list.slotAt(6).item);
+    const ach = await list.clickSlot(6);
+    checkContains('New window title contains Achievements', ach.title, 'Achievements');
+  });
+
+  it('TC-82: achievement items present with correct structure', async () => {
+    tc('TC-82');
+    bot.chat('/bl achievements');
+    const win = await bot.nextWindow(10_000);
+
+    const first = win.slotAt(9);
+    checkDefined('First achievement is defined', first);
+    checkTruthy('First achievement has an item', first.item !== null);
+    checkDefined('First achievement has a name', first.name);
+  });
 });
