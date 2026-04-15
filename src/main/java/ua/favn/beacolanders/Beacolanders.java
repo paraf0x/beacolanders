@@ -92,7 +92,9 @@ public class Beacolanders extends JavaPlugin {
     private void registerCommand() {
         var command = getCommand("beacolanders");
         if (command != null) {
-            command.setExecutor(new BeacolandersCommand(this));
+            BeacolandersCommand executor = new BeacolandersCommand(this);
+            command.setExecutor(executor);
+            command.setTabCompleter(executor);
         }
     }
 

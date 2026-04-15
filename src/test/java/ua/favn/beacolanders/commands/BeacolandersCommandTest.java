@@ -27,11 +27,41 @@ class BeacolandersCommandTest {
     }
 
     @Test
-    void onCommand_opensGui() {
+    void noArgs_opensPlayerList() {
         PlayerMock player = server.addPlayer("Steve");
 
         BeacolandersCommand cmd = new BeacolandersCommand(plugin);
         boolean result = cmd.onCommand(player, null, "bl", new String[]{});
+
+        assertTrue(result);
+    }
+
+    @Test
+    void top_opensLeaderboardSelector() {
+        PlayerMock player = server.addPlayer("Steve");
+
+        BeacolandersCommand cmd = new BeacolandersCommand(plugin);
+        boolean result = cmd.onCommand(player, null, "bl", new String[]{"top"});
+
+        assertTrue(result);
+    }
+
+    @Test
+    void topWithStat_opensLeaderboard() {
+        PlayerMock player = server.addPlayer("Steve");
+
+        BeacolandersCommand cmd = new BeacolandersCommand(plugin);
+        boolean result = cmd.onCommand(player, null, "bl", new String[]{"top", "playtime"});
+
+        assertTrue(result);
+    }
+
+    @Test
+    void achievements_opensAchievementsGui() {
+        PlayerMock player = server.addPlayer("Steve");
+
+        BeacolandersCommand cmd = new BeacolandersCommand(plugin);
+        boolean result = cmd.onCommand(player, null, "bl", new String[]{"achievements"});
 
         assertTrue(result);
     }
