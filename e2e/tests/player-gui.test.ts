@@ -336,16 +336,66 @@ describe('Beacolanders Player GUI', () => {
     await openDetail();
     await delay(2000);
 
-    // Shop at SHOPS_ROW_BASE + 1
     check('Shop exists', 'minecraft:chest', rawItem(SHOPS_ROW_BASE + 1));
 
-    // Click — triggers performCommand("sh detail E2eTestShop")
+    // Click — triggers performCommand("sh detail E2eTestShop --back beacolanders")
     const winPromise = bot.nextWindow(10_000);
     await (bot.raw as any).clickWindow(SHOPS_ROW_BASE + 1, 0, 0);
     const ssWin = await winPromise;
 
     checkDefined('ShopSearch GUI opened via click', ssWin);
     checkTruthy('Not Beacolanders title', !ssWin.title.includes('Beacolanders'));
+  });
+
+  it('TC-55: back button in ShopSearch returns to Beacolanders', async () => {
+    tc('TC-55');
+
+    await openDetail();
+    await delay(2000);
+
+    // Click shop → opens ShopSearch with --back beacolanders
+    let winPromise = bot.nextWindow(10_000);
+    await (bot.raw as any).clickWindow(SHOPS_ROW_BASE + 1, 0, 0);
+    const ssWin = await winPromise;
+    checkTruthy('In ShopSearch GUI', !ssWin.title.includes('Beacolanders'));
+
+    // ShopSearch back button: ARROW at slot (1, last row) = index 45
+    const backIdx = (ssWin.rows - 1) * 9;
+    check('Back button is arrow', 'minecraft:arrow', ssWin.slotAt(backIdx).item);
+
+    // Click back → performCommand("beacolanders") → opens Beacolanders
+    winPromise = bot.nextWindow(10_000);
+    await (bot.raw as any).clickWindow(backIdx, 0, 0);
+    const blWin = await winPromise;
+
+    checkContains('Back to Beacolanders', blWin.title, 'Beacolanders');
+    checkGte('Player heads visible', blWin.findSlots(s => s.item === 'minecraft:player_head').length, 1);
+  });
+
+  it('TC-56: back button in BaseManager returns to Beacolanders', async () => {
+    tc('TC-56');
+
+    const bmDb = new SqliteClient(`${TEST_SERVER_DIR}/plugins/BaseManager/storage.db`, { readonly: true });
+    const realLoc = bmDb.get<{ id: number }>("SELECT id FROM locations LIMIT 1");
+    bmDb.close();
+    checkDefined('Real location exists', realLoc);
+
+    // Open BaseManager detail with --back beacolanders
+    bot.chat(`/loc detail ${realLoc!.id} --back beacolanders`);
+    const bmWin = await bot.nextWindow(10_000);
+    checkTruthy('In BaseManager GUI', !bmWin.title.includes('Beacolanders'));
+
+    // BaseManager back button: ARROW at (1,6) = index 45
+    const backIdx = 5 * 9;
+    check('Back button is arrow', 'minecraft:arrow', bmWin.slotAt(backIdx).item);
+
+    // Click back → returns to Beacolanders
+    const winPromise = bot.nextWindow(10_000);
+    await (bot.raw as any).clickWindow(backIdx, 0, 0);
+    const blWin = await winPromise;
+
+    checkContains('Back to Beacolanders', blWin.title, 'Beacolanders');
+    checkGte('Player heads visible', blWin.findSlots(s => s.item === 'minecraft:player_head').length, 1);
   });
 
   // ─── Navigation ──────────────────────────────────────────

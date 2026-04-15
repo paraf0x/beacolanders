@@ -87,10 +87,12 @@ public final class PlayerDetailGui extends GuiHolder {
         int index = rowOffsets[row] + (col - 1);
         if (row == LOCATIONS_ROW && index < locationDataList.size()) {
             LocationData loc = locationDataList.get(index);
-            player.performCommand("loc detail " + loc.id());
+            player.performCommand(
+                "loc detail " + loc.id() + " --back beacolanders");
         } else if (row == SHOPS_ROW && index < shopDataList.size()) {
             ShopData shop = shopDataList.get(index);
-            player.performCommand("sh detail " + shop.name());
+            player.performCommand(
+                "sh detail " + shop.name() + " --back beacolanders");
         }
     }
 
