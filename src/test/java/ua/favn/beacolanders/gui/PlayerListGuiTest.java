@@ -89,4 +89,24 @@ class PlayerListGuiTest {
         assertNotNull(inv.getItem(10));
         assertNull(inv.getItem(11));
     }
+
+    @Test
+    void constructor_showsLeaderboardButton() {
+        PlayerListGui gui = new PlayerListGui(plugin);
+        Inventory inv = gui.getInventory();
+
+        // Slot 2 = leaderboards button (Gold Ingot)
+        assertNotNull(inv.getItem(2));
+        assertEquals(Material.GOLD_INGOT, inv.getItem(2).getType());
+    }
+
+    @Test
+    void constructor_showsAchievementsButton() {
+        PlayerListGui gui = new PlayerListGui(plugin);
+        Inventory inv = gui.getInventory();
+
+        // Slot 6 = achievements button (Emerald)
+        assertNotNull(inv.getItem(6));
+        assertEquals(Material.EMERALD, inv.getItem(6).getType());
+    }
 }

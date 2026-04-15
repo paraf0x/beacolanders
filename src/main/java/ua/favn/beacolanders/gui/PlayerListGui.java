@@ -18,7 +18,9 @@ public final class PlayerListGui extends GuiHolder {
     private static final int PLAYERS_PER_PAGE = 36;
     private static final int PLAYER_START_SLOT = ROW_SIZE;
     private static final int SEARCH_SLOT = 0;
+    private static final int LEADERBOARDS_SLOT = 2;
     private static final int TITLE_SLOT = 4;
+    private static final int ACHIEVEMENTS_SLOT = 6;
     private static final int PREV_SLOT = ROW_SIZE * 5;
     private static final int PAGE_INDICATOR_SLOT = ROW_SIZE * 5 + 4;
     private static final int NEXT_SLOT = ROW_SIZE * 5 + 8;
@@ -41,6 +43,16 @@ public final class PlayerListGui extends GuiHolder {
     public void onClick(int slot, Player player) {
         if (slot == SEARCH_SLOT) {
             openSearch(player);
+            return;
+        }
+        if (slot == LEADERBOARDS_SLOT) {
+            LeaderboardSelectorGui lb = new LeaderboardSelectorGui(plugin);
+            player.openInventory(lb.getInventory());
+            return;
+        }
+        if (slot == ACHIEVEMENTS_SLOT) {
+            AchievementsGui ach = new AchievementsGui(plugin, player, player);
+            player.openInventory(ach.getInventory());
             return;
         }
         if (slot == PREV_SLOT && page > 0) {
@@ -99,11 +111,23 @@ public final class PlayerListGui extends GuiHolder {
         search.setItemMeta(searchMeta);
         inventory.setItem(SEARCH_SLOT, search);
 
+        ItemStack leaderboards = new ItemStack(Material.GOLD_INGOT);
+        ItemMeta leaderboardsMeta = leaderboards.getItemMeta();
+        leaderboardsMeta.displayName(mm("<gold>Leaderboards"));
+        leaderboards.setItemMeta(leaderboardsMeta);
+        inventory.setItem(LEADERBOARDS_SLOT, leaderboards);
+
         ItemStack title = new ItemStack(Material.NETHER_STAR);
         ItemMeta titleMeta = title.getItemMeta();
         titleMeta.displayName(mm("<gold>Beacolanders"));
         title.setItemMeta(titleMeta);
         inventory.setItem(TITLE_SLOT, title);
+
+        ItemStack achievements = new ItemStack(Material.EMERALD);
+        ItemMeta achievementsMeta = achievements.getItemMeta();
+        achievementsMeta.displayName(mm("<green>Achievements"));
+        achievements.setItemMeta(achievementsMeta);
+        inventory.setItem(ACHIEVEMENTS_SLOT, achievements);
     }
 
     private void renderPlayers() {
