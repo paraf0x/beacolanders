@@ -1,8 +1,11 @@
 package ua.favn.beacolanders;
 
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import ua.favn.beacolanders.commands.BeacolandersCommand;
+import ua.favn.beacolanders.data.AchievementManager;
 import ua.favn.beacolanders.data.DatabaseReader;
+import ua.favn.beacolanders.data.LeaderboardService;
 import ua.favn.beacolanders.gui.GuiListener;
 
 import java.io.File;
@@ -10,7 +13,11 @@ import java.sql.SQLException;
 
 public class Beacolanders extends JavaPlugin {
 
+    private static final int LEADERBOARD_CACHE_TTL_SECONDS = 60;
+
     private DatabaseReader databaseReader;
+    private LeaderboardService leaderboardService;
+    private AchievementManager achievementManager;
 
     @Override
     public void onEnable() {
@@ -31,6 +38,27 @@ public class Beacolanders extends JavaPlugin {
 
     public DatabaseReader getDatabaseReader() {
         return databaseReader;
+    }
+
+    public LeaderboardService getLeaderboardService() {
+        if (leaderboardService == null) {
+            leaderboardService = new LeaderboardService(LEADERBOARD_CACHE_TTL_SECONDS);
+        }
+        return leaderboardService;
+    }
+
+    public AchievementManager getAchievementManager() {
+        if (achievementManager == null) {
+            achievementManager = new AchievementManager();
+            try {
+                java.io.File f = new java.io.File(getDataFolder(), "achievements.yml");
+                if (f.exists()) {
+                    achievementManager.load(YamlConfiguration.loadConfiguration(f));
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return achievementManager;
     }
 
     private void initDatabase() {
