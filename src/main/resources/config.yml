@@ -1,6 +1,10 @@
 # Beacolanders Configuration
 
-# Database settings
+# Database paths (relative to this plugin's data folder)
 database:
-  # Database file name (SQLite)
-  file: storage.db
+  basemanager: ../BaseManager/storage.db
+  shopsearch: ../ShopSearch/storage.db
+
+# Leaderboard settings
+leaderboard:
+  cache-ttl-seconds: 60

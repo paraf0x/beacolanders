@@ -3,3 +3,10 @@ version: '${project.version}'
 main: ua.favn.beacolanders.Beacolanders
 api-version: '1.21'
 author: favn
+description: Server companion plugin for Beacoland
+
+commands:
+  beacolanders:
+    description: Open the Beacolanders player menu
+    aliases: [bl]
+    usage: /<command>

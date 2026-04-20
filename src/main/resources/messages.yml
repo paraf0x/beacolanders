@@ -1,6 +1,18 @@
 # Beacolanders Messages
 # Supports MiniMessage format: <red>, <gold>, <green>, etc.
-# Placeholders use curly braces: {variable}
 
-# Prefix for all messages
 prefix: "<gray>[<gold>Beacolanders<gray>] "
+
+gui:
+  player-list-title: "<dark_gray>Beacolanders"
+  player-detail-title: "<dark_gray>{player}"
+  search-title: "Search player..."
+  back: "<red>Back to Player List"
+  next-page: "<gold>Next Page"
+  prev-page: "<gold>Previous Page"
+  page-indicator: "<gray>Page {current}/{total}"
+  scroll-left: "<gold>Scroll Left"
+  scroll-right: "<gold>Scroll Right (+{count})"
+  no-data: "<gray>No data available"
+  none: "<gray>None"
+  offline: "<gray>Offline"
